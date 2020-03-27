@@ -1,44 +1,88 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { View, FlatList, Image, Text, TouchableOpacity } from 'react-native'
+import api from '../../service/api'
+
 import logoImg from '../../assets/logo.png'
+import { useNavigation } from '@react-navigation/native'
 import { Feather } from '@expo/vector-icons'
 import styles from './styles'
-import { log } from 'react-native-reanimated'
+
 export default function Incidents() {
+
+ const [incidents, setIncidents] = useState([])
+ const [total, setTotal] = useState(0)
+ const [page, setPage] = useState(1)
+ const [loading, setLoading] = useState(false)
+
+ const navigation = useNavigation()
+
+ function navigationDetail(incident) {
+  //infor q quero enviar p a pag q stou nagegando
+  navigation.navigate('Detail', { incident })
+ }
+ async function loadIncidents() {
+  if (loading) {
+   return
+  }
+  if (total > 0 && incidents.length == total) {
+   return
+  }
+
+  setLoading(true)
+  const response = await api.get('incidents', {
+   params: { page }
+  })
+
+  setIncidents([...incidents, ...response.data])
+  setTotal(response.headers["x-total-count"])
+
+  setPage(page + 1)
+  setLoading(false)
+ }
+ useEffect(() => {
+  loadIncidents()
+ }, [])
+
  return (
   <View style={styles.container} >
    <View style={styles.header}>
     <Image source={logoImg} />
     <Text style={styles.headerText}>
-     Total de <Text style={styles.headerTextBold}>0 casos</Text>
+     Total de <Text style={styles.headerTextBold}>{total} casos</Text>
     </Text>
-
    </View>
    <Text style={styles.title}>Bem-vindo!</Text>
    <Text style={styles.description}>Escolha um dos casos abaixo e salve o dia</Text>
 
    <FlatList
-    data={[1, 2, 3]}
+    data={incidents}
+    onEndReached={loadIncidents}
+    onEndReachedThreshold={0.1}
     style={styles.incidentsList}
-    renderItem={() => {
+    keyExtractor={incident => String(incident.id)}
+    showsVerticalScrollIndicator={false}
+    renderItem={({ item: incident }) => (
      <View style={styles.incident}>
       <Text style={styles.incidentProperty}>ONG:</Text>
-      <Text style={styles.incidentValue}>APAD</Text>
+      <Text style={styles.incidentValue}>{incident.name}</Text>
 
       <Text style={styles.incidentProperty}>CASO:</Text>
-      <Text style={styles.incidentValue}>Cadelinha na rua</Text>
+      <Text style={styles.incidentValue}>{incident.title}</Text>
 
       <Text style={styles.incidentProperty}>Valor</Text>
-      <Text style={styles.incidentValue}>R$ 120,00</Text>
+      {/* usar npm install intl para suprir a necessidade quando não existir tal formatação */}
+      {/* importar intl e intl/locale-data/jsonp/pt-BR no app.js */}
+      <Text style={styles.incidentValue}>R$ {incident.value}</Text>
 
       <TouchableOpacity
        style={styles.detailsButton}
-       onPress={() => { }} >
+       onPress={() => navigationDetail(incident)} >
+
        <Text style={styles.detailsButtonText}>Ver mais detalhes</Text>
        <Feather name="arrow-right" size={16} color="#e02041" />
       </TouchableOpacity>
      </View>
-    }}
+    )}
    />
   </View>
  )
